@@ -29,12 +29,6 @@ type Model =
       AllTenants : Tenant array
       Suggestions : Tenant array }
 
-type Msg =
-    | TextChanged of string
-    | TenantsLoaded of string array
-    | ClearSuggestions
-    | UpdateSuggestions of string
-
 let findSuggestions (allSuggestions:Tenant array) (text:string) =
     allSuggestions
     |> Seq.filter(fun s -> s.Text.Contains (text.ToLower()))
@@ -44,16 +38,20 @@ let findSuggestions (allSuggestions:Tenant array) (text:string) =
 let init() =
     let model = { Text = ""; Suggestions = Array.empty; AllTenants = Array.empty }
     let getTenants () = Thoth.Fetch.Fetch.get<_, string array> "api/tenant"
-    model, Cmd.OfPromise.perform getTenants () TenantsLoaded
+    let handleLoad tenants model =
+        { model with
+            AllTenants =
+                tenants
+                |> Array.map(fun tenant ->
+                    {| Original = tenant
+                       Text = tenant.ToLower() |}
+                )
+        }
+    model, Cmd.OfPromise.perform getTenants () handleLoad
 
-let update msg (model:Model) =
-    let model =
-        match msg with
-        | TextChanged text -> { model with Text = text }
-        | ClearSuggestions -> { model with Suggestions = Array.empty }
-        | UpdateSuggestions text -> { model with Suggestions = findSuggestions model.AllTenants text }
-        | TenantsLoaded t -> { model with AllTenants = t |> Array.map(fun s -> {| Original = s; Text = s.ToLower() |}) }
-    { model with Text = if isNull model.Text then "" else model.Text }, Cmd.none
+let update update (model:Model) =
+    { update model with
+        Text = if isNull model.Text then "" else model.Text }, Cmd.none
 
 open Fable.React
 open Fable.React.Props
@@ -69,12 +67,12 @@ let view model dispatch =
             TenantSuggester.getSuggestionValue(fun s -> s.Original)
             TenantSuggester.renderSuggestion(fun s -> Html.span s.Original)
 
-            TenantSuggester.onSuggestionsFetchRequested (UpdateSuggestions >> dispatch)
-            TenantSuggester.onSuggestionsClearRequested (fun () -> dispatch ClearSuggestions)
+            TenantSuggester.onSuggestionsFetchRequested (fun text -> dispatch (fun model -> { model with Suggestions = findSuggestions model.AllTenants text }))
+            TenantSuggester.onSuggestionsClearRequested (fun () -> dispatch (fun model -> { model with Suggestions = Array.empty }))
 
             TenantSuggester.inputProps [
                 TenantSuggester.value model.Text
-                TenantSuggester.onChange (TextChanged >> dispatch)
+                TenantSuggester.onChange (fun text -> dispatch (fun model -> { model with Text = text }))
             ]
         ]
     ]
