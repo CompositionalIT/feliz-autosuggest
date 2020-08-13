@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Shared\Shared.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="bogus" Version="30.0.2" />
     <PackageReference Include="Saturn" Version="0.12.1" />
     <PackageReference Include="Thoth.Json.Giraffe" Version="4.0.0" />
   </ItemGroup>

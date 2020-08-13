@@ -5,13 +5,13 @@
         "build": "webpack -p"
     },
     "devDependencies": {
-        "@babel/core": "^7.6.4",
-        "@babel/plugin-transform-runtime": "^7.6.2",
-        "@babel/runtime": "^7.6.3",
+        "@babel/core": "^7.11.1",
+        "@babel/plugin-transform-runtime": "^7.11.0",
+        "@babel/runtime": "^7.11.2",
         "babel-loader": "^8.0.5",
         "copy-webpack-plugin": "^5.1.1",
-        "core-js": "^3.3.2",
-        "fable-compiler": "^2.4.6",
+        "core-js": "^3.6.5",
+        "fable-compiler": "^2.10.2",
         "fable-loader": "^2.1.8",
         "file-loader": "^4.2.0",
         "html-webpack-plugin": "^3.2.0",
@@ -19,9 +19,12 @@
         "react-dom": "^16.10.2",
         "remotedev": "^0.2.9",
         "resolve-url-loader": "^3.1.0",
-        "terser": "^4.3.9",
-        "webpack": "^4.41.2",
-        "webpack-cli": "^3.3.9",
+        "terser": "^4.8.0",
+        "webpack": "^4.44.1",
+        "webpack-cli": "^3.3.12",
         "webpack-dev-server": "^3.11.0"
+    },
+    "dependencies": {
+        "react-autosuggest": "^10.0.2"
     }
 }

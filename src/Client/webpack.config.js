@@ -60,6 +60,7 @@ module.exports = {
     plugins: isProduction ? [htmlPlugin, copyPlugin] : [htmlPlugin, hmrPlugin],
     optimization: { splitChunks: { chunks: 'all' } },
     devServer: devServer,
+    devtool: "eval-source-map",
     module: {
         rules: [
             {
