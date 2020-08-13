@@ -6,9 +6,11 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Feliz
 
+type IAutoSuggestProp = interface end
+
 [<Erase>]
 type AutoSuggest() =
-    static member inline create props = Interop.reactApi.createElement (importAll "react-autosuggest", createObj !!props)
+    static member inline create props = Interop.reactApi.createElement (importDefault "react-autosuggest", createObj !!props)
 
     static member inline suggestions<'T>(items:seq<'T>) = Interop.mkAttr "suggestions" (Seq.toArray items)
     static member inline getSuggestionValue<'T> (getter:'T -> string) = Interop.mkAttr "getSuggestionValue" getter
@@ -16,11 +18,11 @@ type AutoSuggest() =
     static member inline onSuggestionsClearRequested (clear:unit -> unit) = Interop.mkAttr "onSuggestionsClearRequested" clear
     static member inline renderSuggestion<'T>(renderer:'T -> ReactElement) = Interop.mkAttr "renderSuggestion" renderer
 
-    static member inline inputProps (props:(string * obj) seq) = Interop.mkAttr "inputProps" (createObj !!props)
-    static member inline value (v:string) = "value" ==> v
-    static member inline onChange (handler:string -> unit) = "onChange" ==> fun x -> handler x?target?value
+    static member inline inputProps (props:IAutoSuggestProp seq) = Interop.mkAttr "inputProps" (createObj !!props)
+    static member inline value (value:string) = prop.value value |> unbox<IAutoSuggestProp>
+    static member inline onChange (handler: string -> unit) = Interop.mkAttr "onChange" (System.Func<_,_,unit> (fun _ event -> handler event?newValue)) |> unbox<IAutoSuggestProp>
 
-type Suggestion = {| Text : string |}
+type Suggestion = {| Original : string; Text : string |}
 
 type Model =
     { Text: string
@@ -33,17 +35,16 @@ type Msg =
     | ClearSuggestions
     | UpdateSuggestions of string
 
-// let allSuggestions = [ {| Text = "Hello" |}; {| Text = "Goodbye" |} ];
-let findSuggestions (allSuggestions:Suggestion array) text =
+let findSuggestions (allSuggestions:Suggestion array) (text:string) =
     allSuggestions
-    |> Seq.filter(fun s -> s.Text.StartsWith text)
+    |> Seq.filter(fun s -> s.Text.Contains (text.ToLower()))
     |> Seq.truncate 10
     |> Seq.toArray
 
 let init() =
     let model = { Text = ""; Suggestions = Array.empty; AllTenants = Array.empty }
-    let f () = Thoth.Fetch.Fetch.get<_, string array> "api/tenant"
-    model, Cmd.OfPromise.perform f () TenantsLoaded
+    let getTenants () = Thoth.Fetch.Fetch.get<_, string array> "api/tenant"
+    model, Cmd.OfPromise.perform getTenants () TenantsLoaded
 
 let update msg (model:Model) =
     let model =
@@ -51,7 +52,7 @@ let update msg (model:Model) =
         | TextChanged text -> { model with Text = text }
         | ClearSuggestions -> { model with Suggestions = Array.empty }
         | UpdateSuggestions text -> { model with Suggestions = findSuggestions model.AllTenants text }
-        | TenantsLoaded t -> { model with AllTenants = t |> Array.map(fun s -> {| Text = s |}) }
+        | TenantsLoaded t -> { model with AllTenants = t |> Array.map(fun s -> {| Original = s; Text = s.ToLower() |}) }
     { model with Text = if isNull model.Text then "" else model.Text }, Cmd.none
 
 open Fable.React
@@ -65,7 +66,8 @@ let view model dispatch =
             AutoSuggest.suggestions model.Suggestions
 
             AutoSuggest.getSuggestionValue(fun (s:Suggestion) -> s.Text)
-            AutoSuggest.renderSuggestion(fun (s:Suggestion) -> Html.span s.Text)
+            AutoSuggest.renderSuggestion(fun (s:Suggestion) -> Html.span s.Original)
+
             AutoSuggest.onSuggestionsFetchRequested (UpdateSuggestions >> dispatch)
             AutoSuggest.onSuggestionsClearRequested (fun () -> dispatch ClearSuggestions)
 
