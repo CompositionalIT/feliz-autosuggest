@@ -29,6 +29,9 @@ type Model =
       AllTenants : Tenant array
       Suggestions : Tenant array }
 
+type Msg =
+    | Update of (Model -> Model)
+
 let findSuggestions (allSuggestions:Tenant array) (text:string) =
     allSuggestions
     |> Seq.filter(fun s -> s.Text.Contains (text.ToLower()))
@@ -38,26 +41,18 @@ let findSuggestions (allSuggestions:Tenant array) (text:string) =
 let init() =
     let model = { Text = ""; Suggestions = Array.empty; AllTenants = Array.empty }
     let getTenants () = Thoth.Fetch.Fetch.get<_, string array> "api/tenant"
-    let handleLoad tenants model =
-        { model with
-            AllTenants =
-                tenants
-                |> Array.map(fun tenant ->
-                    {| Original = tenant
-                       Text = tenant.ToLower() |}
-                )
-        }
-    model, Cmd.OfPromise.perform getTenants () handleLoad
+    model, Cmd.OfPromise.perform getTenants () (fun t -> Update (fun model -> { model with AllTenants = t |> Array.map(fun s -> {| Original = s; Text = s.ToLower() |}) }))
 
-let update update (model:Model) =
-    { update model with
-        Text = if isNull model.Text then "" else model.Text }, Cmd.none
+let update msg (model:Model) =
+    let model = match msg with Update update -> update model
+    { model with Text = if isNull model.Text then "" else model.Text }, Cmd.none
 
 open Fable.React
 open Fable.React.Props
 
 type TenantSuggester = AutoSuggest<Tenant>
 let view model dispatch =
+    let dispatch = Update >> dispatch
     div [] [
         img [ Src "favicon.png" ]
         h1 [] [ str "autosuggest" ]
@@ -67,7 +62,7 @@ let view model dispatch =
             TenantSuggester.getSuggestionValue(fun s -> s.Original)
             TenantSuggester.renderSuggestion(fun s -> Html.span s.Original)
 
-            TenantSuggester.onSuggestionsFetchRequested (fun text -> dispatch (fun model -> { model with Suggestions = findSuggestions model.AllTenants text }))
+            TenantSuggester.onSuggestionsFetchRequested (fun text -> dispatch(fun model -> { model with Suggestions = findSuggestions model.AllTenants text }))
             TenantSuggester.onSuggestionsClearRequested (fun () -> dispatch (fun model -> { model with Suggestions = Array.empty }))
 
             TenantSuggester.inputProps [
